@@ -32,11 +32,6 @@
       background: #ffd700; color: #1e3c72; font-size: 11px; font-weight: 700;
       padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px;
     }
-    .logout-btn {
-      background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.5);
-      font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; display: none;
-    }
-    .logout-btn:hover { background: rgba(255,255,255,0.1); }
 
     /* CONTAINER */
     .container {
@@ -151,11 +146,7 @@
     .modal-body .field input.missing { background: #fff3cd; border-color: #ffc107; }
     .modal-foot { padding: 12px 18px; border-top: 1px solid #dee2e6; display: flex; gap: 8px; justify-content: flex-end; }
 
-    /* LOGIN */
-    #loginOverlay { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
-    #loginOverlay .modal { max-width: 380px; }
     .login-msg { font-size: 12px; color: #dc3545; min-height: 16px; margin-top: 4px; }
-    .login-note { font-size: 12px; color: #6c757d; margin-bottom: 12px; }
 
     .footer { max-width: 1400px; margin: 10px auto 0; text-align: center; color: rgba(255,255,255,0.7); font-size: 11px; }
 
@@ -177,7 +168,6 @@
   <h1>🛡️ All India Police Directory</h1>
   <div class="header-right">
     <span class="badge">AIPD Search</span>
-    <button class="logout-btn" id="btnLogout" title="Lock this session">🔒 Lock</button>
   </div>
 </div>
 
@@ -234,24 +224,6 @@
 
 <div class="footer">All India Police Directory · For official use only</div>
 
-<!-- LOGIN MODAL -->
-<div class="modal-overlay show" id="loginOverlay">
-  <div class="modal">
-    <div class="modal-head"><h3>🔐 Authorised Access</h3></div>
-    <div class="modal-body">
-      <p class="login-note">Enter the access key to use the directory.</p>
-      <div class="field">
-        <label for="loginKey">Access Key</label>
-        <input type="password" id="loginKey" autocomplete="current-password">
-        <div class="login-msg" id="loginMsg"></div>
-      </div>
-    </div>
-    <div class="modal-foot">
-      <button class="btn btn-search" id="btnLogin">Unlock</button>
-    </div>
-  </div>
-</div>
-
 <!-- UPDATE MODAL -->
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
@@ -275,8 +247,6 @@
 
   // ============ STATE ============
   const PAGE_SIZE = 25;
-  const KEY_STORE = 'aipd_access_key';
-  let accessKey = '';
   let currentResults = [];
   let currentPage = 1;
   let currentSearchTerms = {};
@@ -294,12 +264,9 @@
   const statusText = $('statusText');
 
   // ============ API LAYER (replaces google.script.run) ============
-  class AuthError extends Error {}
-
   async function apiGet(action, params = {}) {
     const url = new URL(API_URL);
     url.searchParams.set('action', action);
-    url.searchParams.set('key', accessKey);
     Object.keys(params).forEach(k => url.searchParams.set(k, params[k] == null ? '' : params[k]));
     const res = await fetch(url.toString(), { method: 'GET', redirect: 'follow' });
     return handleResponse(res);
@@ -311,7 +278,7 @@
       method: 'POST',
       redirect: 'follow',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(Object.assign({ action: action, key: accessKey }, body))
+      body: JSON.stringify(Object.assign({ action: action }, body))
     });
     return handleResponse(res);
   }
@@ -321,63 +288,21 @@
     let data;
     try { data = await res.json(); }
     catch (e) { throw new Error('Unexpected response from server. Check the Web App deployment (access must be "Anyone").'); }
-    if (data && data.code === 401) throw new AuthError(data.error || 'Unauthorized');
     return data;
   }
 
   function handleApiError(err, prefix) {
-    if (err instanceof AuthError) { lock('Session expired or key invalid. Please unlock again.'); return; }
     showAlert((prefix ? prefix + ': ' : '') + err.message, 'error');
-  }
-
-  // ============ LOGIN ============
-  function getStoredKey() { try { return sessionStorage.getItem(KEY_STORE) || ''; } catch (e) { return ''; } }
-  function setStoredKey(k) { try { k ? sessionStorage.setItem(KEY_STORE, k) : sessionStorage.removeItem(KEY_STORE); } catch (e) {} }
-
-  async function tryUnlock(key) {
-    const btn = $('btnLogin');
-    $('loginMsg').textContent = '';
-    btn.disabled = true; btn.textContent = 'Checking...';
-    accessKey = key;
-    try {
-      const r = await apiGet('ping');
-      if (!r.success) throw new Error(r.error || 'Failed');
-      setStoredKey(key);
-      $('loginOverlay').classList.remove('show');
-      $('btnLogout').style.display = 'inline-block';
-      loadStates();
-    } catch (err) {
-      accessKey = '';
-      setStoredKey('');
-      $('loginMsg').textContent = err instanceof AuthError ? 'Invalid access key.' : err.message;
-    } finally {
-      btn.disabled = false; btn.textContent = 'Unlock';
-    }
-  }
-
-  function lock(msg) {
-    accessKey = '';
-    setStoredKey('');
-    doClear();
-    fState.innerHTML = '<option value="">-- All States --</option>';
-    $('btnLogout').style.display = 'none';
-    $('loginKey').value = '';
-    $('loginMsg').textContent = msg || '';
-    $('loginOverlay').classList.add('show');
-    setTimeout(() => $('loginKey').focus(), 50);
   }
 
   // ============ INIT ============
   window.addEventListener('DOMContentLoaded', () => {
     attachEvents();
     if (API_URL.indexOf('PASTE_') === 0) {
-      $('loginMsg').textContent = 'API_URL is not configured in index.html.';
-      $('btnLogin').disabled = true;
+      showAlert('API_URL is not configured in index.html.', 'error');
       return;
     }
-    const saved = getStoredKey();
-    if (saved) { $('loginKey').value = saved; tryUnlock(saved); }
-    else $('loginKey').focus();
+    loadStates();
   });
 
   function attachEvents() {
@@ -387,10 +312,6 @@
     fState.addEventListener('change', onStateChange);
     fDistrict.addEventListener('change', onDistrictChange);
     [fName, fMobile].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); }));
-
-    $('btnLogin').addEventListener('click', () => { const k = $('loginKey').value.trim(); if (k) tryUnlock(k); });
-    $('loginKey').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnLogin').click(); });
-    $('btnLogout').addEventListener('click', () => lock());
 
     $('modalCloseBtn').addEventListener('click', closeModal);
     $('modalCancelBtn').addEventListener('click', closeModal);
@@ -571,7 +492,7 @@
     pagination.appendChild(info);
   }
 
-  // ============ HIGHLIGHTING (works on raw text, escapes per character) ============
+  // ============ HIGHLIGHTING ============
   function wrapRange(text, s, e) {
     return escapeHtml(text.substring(0, s)) + '<span class="highlight">' +
       escapeHtml(text.substring(s, e)) + '</span>' + escapeHtml(text.substring(e));
@@ -693,8 +614,7 @@
       renderResults();
       showAlert('Record updated successfully.', 'info');
     } catch (err) {
-      if (err instanceof AuthError) { closeModal(); handleApiError(err); }
-      else $('modalMsg').textContent = 'Update failed: ' + err.message;
+      $('modalMsg').textContent = 'Update failed: ' + err.message;
     } finally {
       saveBtn.disabled = false; saveBtn.textContent = '💾 Save';
     }
@@ -727,7 +647,7 @@
       return s;
     }).join(',')).join('\r\n');
 
-    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

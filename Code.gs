@@ -1,42 +1,29 @@
 /**
  * ALL INDIA POLICE DIRECTORY - Backend API (Google Apps Script)
- * Front-end: GitHub Pages (static index.html) calls this web app via fetch().
+ * Front-end: https://allindiapolicedirectory.github.io (calls this via fetch)
  *
  * Sheet ID  : 1ghy26XqLN3VHMvVmiruLS_Vjg_H3hXyr7kAR1zhpAFQ
  * Sheet Name: AIPD
  * Columns   : A SNO | B Name | C Email | D Mobile | E User Type | F State | G District | H Station
  *
- * SECURITY: Set a Script Property named ACCESS_KEY
- *   (Project Settings ▸ Script Properties ▸ Add property)
- * Every API call must send this key, otherwise it is rejected.
+ * Deploy as Web app → Execute as: Me → Who has access: Anyone
  */
 
 // ============ CONFIGURATION ============
 const SHEET_ID = '1ghy26XqLN3VHMvVmiruLS_Vjg_H3hXyr7kAR1zhpAFQ';
 const SHEET_NAME = 'AIPD';
-const REQUIRED_FIELDS = ['Name', 'Email', 'Mobile', 'User Type', 'State', 'District', 'Station'];
 
 // ============ WEB APP ENTRY POINTS ============
-/**
- * GET  ?action=ping|states|districts|stations|search&key=...
- * With no ?action the old Apps Script UI (Index.html) is still served, if present.
- */
+/** GET ?action=ping|states|districts|stations|search */
 function doGet(e) {
   const p = (e && e.parameter) || {};
   if (!p.action) {
-    return HtmlService.createTemplateFromFile('Index')
-      .evaluate()
-      .setTitle('All India Police Directory')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+    return json_({ success: true, message: 'AIPD API is running' });
   }
   return handleApi_(p.action, p);
 }
 
-/**
- * POST body (sent as text/plain to avoid CORS preflight):
- *   { "action": "update", "key": "...", "payload": { rowIndex, name, ... } }
- */
+/** POST body (text/plain): { "action": "update", "payload": { rowIndex, name, ... } } */
 function doPost(e) {
   let body = {};
   try {
@@ -49,9 +36,6 @@ function doPost(e) {
 
 function handleApi_(action, p) {
   try {
-    if (!checkKey_(p.key)) {
-      return json_({ success: false, code: 401, error: 'Unauthorized: invalid access key' });
-    }
     let res;
     switch (String(action || '')) {
       case 'ping':      res = { success: true }; break;
@@ -76,20 +60,10 @@ function handleApi_(action, p) {
   }
 }
 
-function checkKey_(key) {
-  const expected = PropertiesService.getScriptProperties().getProperty('ACCESS_KEY');
-  if (!expected) return false; // locked until ACCESS_KEY is configured
-  return String(key || '') === expected;
-}
-
 function json_(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
-}
-
-function include(filename) {
-  return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
 function getSheet_() {
@@ -109,14 +83,14 @@ function getStates() {
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return { success: true, states: [] };
 
-    const stateValues = sheet.getRange(2, 6, lastRow - 1, 1).getValues();
+    const values = sheet.getRange(2, 6, lastRow - 1, 1).getValues();
     const unique = new Set();
-    stateValues.forEach(row => {
-      const v = String(row[0] || '').trim();
+    values.forEach(r => {
+      const v = String(r[0] || '').trim();
       if (v) unique.add(v);
     });
     const states = Array.from(unique).sort();
-    cache.put('AIPD_STATES', JSON.stringify(states), 600); // 10 min
+    cache.put('AIPD_STATES', JSON.stringify(states), 600); // 10 minutes
     return { success: true, states: states };
   } catch (err) {
     return { success: false, error: err.message };
@@ -131,12 +105,12 @@ function getDistricts(state) {
     if (lastRow < 2) return { success: true, districts: [] };
 
     const data = sheet.getRange(2, 6, lastRow - 1, 2).getValues();
-    const stateLower = String(state).trim().toLowerCase();
+    const s0 = String(state).trim().toLowerCase();
     const unique = new Set();
-    data.forEach(row => {
-      const s = String(row[0] || '').trim().toLowerCase();
-      const d = String(row[1] || '').trim();
-      if (s === stateLower && d) unique.add(d);
+    data.forEach(r => {
+      const s = String(r[0] || '').trim().toLowerCase();
+      const d = String(r[1] || '').trim();
+      if (s === s0 && d) unique.add(d);
     });
     return { success: true, districts: Array.from(unique).sort() };
   } catch (err) {
@@ -152,14 +126,14 @@ function getStations(state, district) {
     if (lastRow < 2) return { success: true, stations: [] };
 
     const data = sheet.getRange(2, 6, lastRow - 1, 3).getValues();
-    const stateLower = String(state).trim().toLowerCase();
-    const districtLower = String(district).trim().toLowerCase();
+    const s0 = String(state).trim().toLowerCase();
+    const d0 = String(district).trim().toLowerCase();
     const unique = new Set();
-    data.forEach(row => {
-      const s = String(row[0] || '').trim().toLowerCase();
-      const d = String(row[1] || '').trim().toLowerCase();
-      const st = String(row[2] || '').trim();
-      if (s === stateLower && d === districtLower && st) unique.add(st);
+    data.forEach(r => {
+      const s = String(r[0] || '').trim().toLowerCase();
+      const d = String(r[1] || '').trim().toLowerCase();
+      const st = String(r[2] || '').trim();
+      if (s === s0 && d === d0 && st) unique.add(st);
     });
     return { success: true, stations: Array.from(unique).sort() };
   } catch (err) {
@@ -192,7 +166,7 @@ function searchRecords(filters) {
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      const record = {
+      const rec = {
         rowIndex: i + 2,
         sno: row[0],
         name: String(row[1] || ''),
@@ -204,36 +178,31 @@ function searchRecords(filters) {
         station: String(row[7] || '')
       };
 
-      if (fState && record.state.toLowerCase().indexOf(fState) === -1) continue;
-      if (fDistrict && record.district.toLowerCase().indexOf(fDistrict) === -1) continue;
-      if (fStation && record.station.toLowerCase().indexOf(fStation) === -1) continue;
+      if (fState && rec.state.toLowerCase().indexOf(fState) === -1) continue;
+      if (fDistrict && rec.district.toLowerCase().indexOf(fDistrict) === -1) continue;
+      if (fStation && rec.station.toLowerCase().indexOf(fStation) === -1) continue;
 
       if (fMobile) {
-        const mobileDigits = record.mobile.replace(/\D/g, '');
-        const queryDigits = fMobile.replace(/\D/g, '');
-        if (queryDigits && mobileDigits.indexOf(queryDigits) === -1) continue;
+        const md = rec.mobile.replace(/\D/g, '');
+        const qd = fMobile.replace(/\D/g, '');
+        if (qd && md.indexOf(qd) === -1) continue;
       }
 
-      if (fName && !fuzzyNameMatch(record.name.toLowerCase(), fName)) continue;
+      if (fName && !fuzzyNameMatch(rec.name.toLowerCase(), fName)) continue;
 
       const missing = [];
-      if (!record.name.trim()) missing.push('Name');
-      if (!record.email.trim()) missing.push('Email');
-      if (!record.mobile.trim()) missing.push('Mobile');
-      if (!record.userType.trim()) missing.push('User Type');
-      if (!record.state.trim()) missing.push('State');
-      if (!record.district.trim()) missing.push('District');
-      if (!record.station.trim()) missing.push('Station');
-
-      if (missing.length > 0) {
-        incomplete.push({
-          rowIndex: record.rowIndex,
-          sno: record.sno,
-          name: record.name || '(no name)',
-          missing: missing
-        });
+      if (!rec.name.trim()) missing.push('Name');
+      if (!rec.email.trim()) missing.push('Email');
+      if (!rec.mobile.trim()) missing.push('Mobile');
+      if (!rec.userType.trim()) missing.push('User Type');
+      if (!rec.state.trim()) missing.push('State');
+      if (!rec.district.trim()) missing.push('District');
+      if (!rec.station.trim()) missing.push('Station');
+      if (missing.length) {
+        incomplete.push({ rowIndex: rec.rowIndex, sno: rec.sno, name: rec.name || '(no name)', missing: missing });
       }
-      results.push(record);
+
+      results.push(rec);
     }
 
     return { success: true, results: results, incomplete: incomplete, totalMatched: results.length };
@@ -242,6 +211,7 @@ function searchRecords(filters) {
   }
 }
 
+/** Fuzzy name match: substring, word match, or shuffled letters (NAGESWAR ↔ EGANRSWA) */
 function fuzzyNameMatch(name, query) {
   if (!query) return true;
   if (!name) return false;
@@ -254,14 +224,13 @@ function fuzzyNameMatch(name, query) {
   }
 
   if (query.length >= 4) {
-    const queryLetters = query.replace(/[^a-z]/g, '').split('').sort().join('');
-    if (!queryLetters) return false;
-    const nameLetters = name.replace(/[^a-z]/g, '').split('').sort().join('');
-    if (nameLetters.indexOf(queryLetters) !== -1) return true;
+    const q = query.replace(/[^a-z]/g, '').split('').sort().join('');
+    if (!q) return false;
+    const n = name.replace(/[^a-z]/g, '').split('').sort().join('');
+    if (n.indexOf(q) !== -1) return true;
     for (let i = 0; i < words.length; i++) {
-      const wordLetters = words[i].replace(/[^a-z]/g, '').split('').sort().join('');
-      if (wordLetters === queryLetters) return true;
-      if (isSubMultiset(queryLetters, wordLetters)) return true;
+      const w = words[i].replace(/[^a-z]/g, '').split('').sort().join('');
+      if (w === q || isSubMultiset(q, w)) return true;
     }
   }
   return false;
@@ -278,7 +247,7 @@ function isSubMultiset(small, large) {
   return true;
 }
 
-// ============ UPDATE ============
+// ============ UPDATE (complete missing fields) ============
 function updateRecord(payload) {
   const lock = LockService.getScriptLock();
   try {
@@ -294,12 +263,13 @@ function updateRecord(payload) {
     if (!String(payload.state || '').trim()) missing.push('State');
     if (!String(payload.district || '').trim()) missing.push('District');
     if (!String(payload.station || '').trim()) missing.push('Station');
-    if (missing.length > 0) return { success: false, error: 'Still missing: ' + missing.join(', ') };
+    if (missing.length) return { success: false, error: 'Still missing: ' + missing.join(', ') };
 
     lock.waitLock(10000);
     const sheet = getSheet_();
     if (row > sheet.getLastRow()) return { success: false, error: 'Row no longer exists' };
 
+    // Columns B..H (Name..Station); SNO in column A is untouched
     sheet.getRange(row, 2, 1, 7).setValues([[
       payload.name, payload.email, payload.mobile, payload.userType,
       payload.state, payload.district, payload.station
