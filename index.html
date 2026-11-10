@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>All India Police Directory</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; font-family: 'Segoe UI', Tahoma, Geneva, sans-serif; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 50%, #1e3c72 100%);
+      background-attachment: fixed;
+      color: #333;
+      padding: 15px;
+    }
+
+    /* HEADER */
+    .header {
+      max-width: 1400px; margin: 0 auto;
+      background: linear-gradient(90deg, #0f2027, #203a43, #2c5364);
+      color: #fff; padding: 14px 22px;
+      border-radius: 10px 10px 0 0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      border-bottom: 3px solid #ffd700;
+    }
+    .header h1 { font-size: 20px; letter-spacing: 1px; display: flex; align-items: center; gap: 10px; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .badge {
+      background: #ffd700; color: #1e3c72; font-size: 11px; font-weight: 700;
+      padding: 4px 10px; border-radius: 20px; letter-spacing: 0.5px;
+    }
+    .logout-btn {
+      background: transparent; color: #fff; border: 1px solid rgba(255,255,255,0.5);
+      font-size: 11px; padding: 4px 10px; border-radius: 4px; cursor: pointer; display: none;
+    }
+    .logout-btn:hover { background: rgba(255,255,255,0.1); }
+
+    /* CONTAINER */
+    .container {
+      max-width: 1400px; margin: 0 auto; background: #fff;
+      border-radius: 0 0 10px 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.3); overflow: hidden;
+    }
+
+    /* SEARCH PANEL */
+    .search-panel { background: linear-gradient(to bottom, #f8f9fa, #e9ecef); padding: 14px 18px; border-bottom: 2px solid #dee2e6; }
+    .search-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px 12px; margin-bottom: 12px; }
+    .field { display: flex; flex-direction: column; }
+    .field label { font-size: 11px; font-weight: 600; color: #495057; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .field input, .field select {
+      padding: 6px 9px; font-size: 13px; border: 1px solid #ced4da; border-radius: 4px;
+      background: #fff; transition: border-color 0.15s, box-shadow 0.15s; height: 32px; width: 100%;
+    }
+    .field input:focus, .field select:focus { outline: none; border-color: #2a5298; box-shadow: 0 0 0 2px rgba(42,82,152,0.15); }
+    .field select:disabled { background: #f1f3f5; color: #adb5bd; cursor: not-allowed; }
+
+    /* BUTTONS */
+    .btn-row { display: flex; gap: 10px; align-items: center; }
+    .btn {
+      padding: 8px 20px; font-size: 13px; font-weight: 600; border: none; border-radius: 5px;
+      cursor: pointer; transition: transform 0.1s, box-shadow 0.15s; letter-spacing: 0.3px;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.2); }
+    .btn:active { transform: translateY(0); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+    .btn-search { background: #2a5298; color: #fff; }
+    .btn-search:hover:not(:disabled) { background: #1e3c72; }
+    .btn-clear { background: #6c757d; color: #fff; }
+    .btn-clear:hover:not(:disabled) { background: #5a6268; }
+    .btn-export { background: #28a745; color: #fff; }
+    .btn-export:hover:not(:disabled) { background: #218838; }
+    .status-text { margin-left: auto; font-size: 12px; color: #495057; font-weight: 500; }
+
+    /* LOADER / ALERT */
+    .loader { display: none; text-align: center; padding: 30px; color: #2a5298; font-weight: 600; }
+    .loader.active { display: block; }
+    .spinner {
+      display: inline-block; width: 22px; height: 22px; border: 3px solid #e9ecef;
+      border-top-color: #2a5298; border-radius: 50%; animation: spin 0.8s linear infinite;
+      vertical-align: middle; margin-right: 8px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .alert { padding: 10px 14px; margin: 12px 18px; border-radius: 5px; font-size: 13px; display: none; }
+    .alert.show { display: block; }
+    .alert-error { background: #f8d7da; color: #721c24; border-left: 4px solid #dc3545; }
+    .alert-info { background: #d1ecf1; color: #0c5460; border-left: 4px solid #17a2b8; }
+    .alert-warning { background: #fff3cd; color: #856404; border-left: 4px solid #ffc107; }
+
+    /* INCOMPLETE NOTICE */
+    .incomplete-notice {
+      background: #fff3cd; color: #856404; padding: 10px 14px; margin: 12px 18px;
+      border-left: 4px solid #ffc107; border-radius: 5px; font-size: 13px; display: none;
+    }
+    .incomplete-notice.show { display: block; }
+    .incomplete-notice strong { display: block; margin-bottom: 6px; }
+    .incomplete-notice ul { margin-left: 22px; max-height: 110px; overflow-y: auto; }
+    .incomplete-notice li { margin: 2px 0; }
+
+    /* RESULTS */
+    .results-wrap { padding: 0 18px 18px; }
+    .results-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 10px 0 8px; border-bottom: 2px solid #dee2e6; margin-bottom: 8px;
+    }
+    .results-count { font-size: 14px; color: #495057; font-weight: 600; }
+    .table-scroll { overflow-x: auto; border: 1px solid #dee2e6; border-radius: 5px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead { background: linear-gradient(to bottom, #2a5298, #1e3c72); color: #fff; position: sticky; top: 0; z-index: 10; }
+    thead th { padding: 10px 8px; text-align: left; font-weight: 600; font-size: 12px; letter-spacing: 0.4px; text-transform: uppercase; white-space: nowrap; }
+    tbody td { padding: 8px; border-bottom: 1px solid #e9ecef; vertical-align: top; }
+    tbody tr:hover { background: #f8f9fa; }
+    tbody tr:nth-child(even) { background: #fafbfc; }
+    tbody tr:nth-child(even):hover { background: #f1f3f5; }
+    .row-incomplete { background: #fff9e6 !important; }
+    .row-incomplete:hover { background: #fff3cd !important; }
+    .highlight { background: #ffe066; font-weight: 700; padding: 1px 2px; border-radius: 2px; }
+    .fix-btn { background: #ffc107; color: #000; border: none; padding: 3px 8px; border-radius: 3px; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .fix-btn:hover { background: #e0a800; }
+    .empty-state { text-align: center; padding: 50px 20px; color: #6c757d; }
+    .empty-state .icon { font-size: 48px; margin-bottom: 10px; opacity: 0.4; }
+    .empty-state h3 { color: #495057; margin-bottom: 6px; }
+    .empty-state p { font-size: 13px; }
+
+    /* PAGINATION */
+    .pagination { display: flex; justify-content: center; align-items: center; gap: 4px; padding: 14px 0 6px; flex-wrap: wrap; }
+    .page-btn { padding: 5px 10px; border: 1px solid #ced4da; background: #fff; color: #495057; font-size: 12px; font-weight: 600; border-radius: 3px; cursor: pointer; min-width: 32px; }
+    .page-btn:hover:not(:disabled):not(.active) { background: #e9ecef; }
+    .page-btn.active { background: #2a5298; color: #fff; border-color: #2a5298; }
+    .page-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .page-info { margin: 0 10px; font-size: 12px; color: #495057; }
+
+    /* MODALS */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      z-index: 999; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal { background: #fff; border-radius: 8px; max-width: 520px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.4); }
+    .modal-head {
+      background: linear-gradient(90deg, #2a5298, #1e3c72); color: #fff; padding: 12px 18px;
+      border-radius: 8px 8px 0 0; display: flex; justify-content: space-between; align-items: center;
+    }
+    .modal-head h3 { font-size: 16px; }
+    .close-btn { background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; line-height: 1; }
+    .modal-body { padding: 16px 18px; }
+    .modal-body .field { margin-bottom: 10px; }
+    .modal-body .field input { height: 34px; }
+    .modal-body .field input.missing { background: #fff3cd; border-color: #ffc107; }
+    .modal-foot { padding: 12px 18px; border-top: 1px solid #dee2e6; display: flex; gap: 8px; justify-content: flex-end; }
+
+    /* LOGIN */
+    #loginOverlay { background: linear-gradient(135deg, #0f2027, #203a43, #2c5364); }
+    #loginOverlay .modal { max-width: 380px; }
+    .login-msg { font-size: 12px; color: #dc3545; min-height: 16px; margin-top: 4px; }
+    .login-note { font-size: 12px; color: #6c757d; margin-bottom: 12px; }
+
+    .footer { max-width: 1400px; margin: 10px auto 0; text-align: center; color: rgba(255,255,255,0.7); font-size: 11px; }
+
+    @media (max-width: 992px) { .search-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 600px) {
+      body { padding: 8px; }
+      .search-grid { grid-template-columns: repeat(2, 1fr); }
+      .btn-row { flex-wrap: wrap; }
+      .status-text { margin-left: 0; width: 100%; }
+      .header { padding: 12px 14px; }
+      .header h1 { font-size: 16px; }
+      .badge { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🛡️ All India Police Directory</h1>
+  <div class="header-right">
+    <span class="badge">AIPD Search</span>
+    <button class="logout-btn" id="btnLogout" title="Lock this session">🔒 Lock</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="search-panel">
+    <div class="search-grid">
+      <div class="field">
+        <label for="fState">State</label>
+        <select id="fState"><option value="">-- All States --</option></select>
+      </div>
+      <div class="field">
+        <label for="fDistrict">District</label>
+        <select id="fDistrict" disabled><option value="">-- All Districts --</option></select>
+      </div>
+      <div class="field">
+        <label for="fStation">Station</label>
+        <select id="fStation" disabled><option value="">-- All Stations --</option></select>
+      </div>
+      <div class="field">
+        <label for="fName">Name</label>
+        <input type="text" id="fName" placeholder="Partial / fuzzy match" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="fMobile">Mobile</label>
+        <input type="text" id="fMobile" placeholder="Partial digits OK" autocomplete="off" inputmode="numeric">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-search" id="btnSearch">🔍 Search</button>
+      <button class="btn btn-clear" id="btnClear">✖ Clear</button>
+      <button class="btn btn-export" id="btnExport" disabled>📥 Export to Excel</button>
+      <span class="status-text" id="statusText"></span>
+    </div>
+  </div>
+
+  <div class="alert" id="alertBox"></div>
+  <div class="incomplete-notice" id="incompleteNotice"></div>
+  <div class="loader" id="loader"><span class="spinner"></span> Searching records...</div>
+
+  <div class="results-wrap">
+    <div class="results-header" id="resultsHeader" style="display:none;">
+      <div class="results-count" id="resultsCount"></div>
+    </div>
+    <div id="resultsArea">
+      <div class="empty-state">
+        <div class="icon">🔎</div>
+        <h3>No search performed yet</h3>
+        <p>Use the filters above and click <b>Search</b> to find records.</p>
+      </div>
+    </div>
+    <div class="pagination" id="pagination" style="display:none;"></div>
+  </div>
+</div>
+
+<div class="footer">All India Police Directory · For official use only</div>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay show" id="loginOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>🔐 Authorised Access</h3></div>
+    <div class="modal-body">
+      <p class="login-note">Enter the access key to use the directory.</p>
+      <div class="field">
+        <label for="loginKey">Access Key</label>
+        <input type="password" id="loginKey" autocomplete="current-password">
+        <div class="login-msg" id="loginMsg"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-search" id="btnLogin">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<!-- UPDATE MODAL -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>✎ Complete Missing Fields</h3>
+      <button class="close-btn" id="modalCloseBtn">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-foot">
+      <button class="btn btn-clear" id="modalCancelBtn">Cancel</button>
+      <button class="btn btn-search" id="modalSaveBtn">💾 Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // =====================================================================
+  //  CONFIG — paste your Apps Script Web App URL (ends with /exec) here
+  // =====================================================================
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwDvwO0yyPJidqmITBsRYab973_frr-rbu7ynDIhyEgyUvNzjLgAHF3FlmHrqxTu9BzuA/exec';
+
+  // ============ STATE ============
+  const PAGE_SIZE = 25;
+  const KEY_STORE = 'aipd_access_key';
+  let accessKey = '';
+  let currentResults = [];
+  let currentPage = 1;
+  let currentSearchTerms = {};
+  let editingRow = null;
+
+  // ============ DOM ============
+  const $ = id => document.getElementById(id);
+  const fState = $('fState'), fDistrict = $('fDistrict'), fStation = $('fStation');
+  const fName = $('fName'), fMobile = $('fMobile');
+  const btnSearch = $('btnSearch'), btnClear = $('btnClear'), btnExport = $('btnExport');
+  const loader = $('loader'), alertBox = $('alertBox');
+  const incompleteNotice = $('incompleteNotice');
+  const resultsArea = $('resultsArea'), resultsHeader = $('resultsHeader');
+  const resultsCount = $('resultsCount'), pagination = $('pagination');
+  const statusText = $('statusText');
+
+  // ============ API LAYER (replaces google.script.run) ============
+  class AuthError extends Error {}
+
+  async function apiGet(action, params = {}) {
+    const url = new URL(API_URL);
+    url.searchParams.set('action', action);
+    url.searchParams.set('key', accessKey);
+    Object.keys(params).forEach(k => url.searchParams.set(k, params[k] == null ? '' : params[k]));
+    const res = await fetch(url.toString(), { method: 'GET', redirect: 'follow' });
+    return handleResponse(res);
+  }
+
+  async function apiPost(action, body = {}) {
+    // text/plain avoids a CORS preflight, which Apps Script does not support
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      redirect: 'follow',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(Object.assign({ action: action, key: accessKey }, body))
+    });
+    return handleResponse(res);
+  }
+
+  async function handleResponse(res) {
+    if (!res.ok) throw new Error('Server returned HTTP ' + res.status);
+    let data;
+    try { data = await res.json(); }
+    catch (e) { throw new Error('Unexpected response from server. Check the Web App deployment (access must be "Anyone").'); }
+    if (data && data.code === 401) throw new AuthError(data.error || 'Unauthorized');
+    return data;
+  }
+
+  function handleApiError(err, prefix) {
+    if (err instanceof AuthError) { lock('Session expired or key invalid. Please unlock again.'); return; }
+    showAlert((prefix ? prefix + ': ' : '') + err.message, 'error');
+  }
+
+  // ============ LOGIN ============
+  function getStoredKey() { try { return sessionStorage.getItem(KEY_STORE) || ''; } catch (e) { return ''; } }
+  function setStoredKey(k) { try { k ? sessionStorage.setItem(KEY_STORE, k) : sessionStorage.removeItem(KEY_STORE); } catch (e) {} }
+
+  async function tryUnlock(key) {
+    const btn = $('btnLogin');
+    $('loginMsg').textContent = '';
+    btn.disabled = true; btn.textContent = 'Checking...';
+    accessKey = key;
+    try {
+      const r = await apiGet('ping');
+      if (!r.success) throw new Error(r.error || 'Failed');
+      setStoredKey(key);
+      $('loginOverlay').classList.remove('show');
+      $('btnLogout').style.display = 'inline-block';
+      loadStates();
+    } catch (err) {
+      accessKey = '';
+      setStoredKey('');
+      $('loginMsg').textContent = err instanceof AuthError ? 'Invalid access key.' : err.message;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Unlock';
+    }
+  }
+
+  function lock(msg) {
+    accessKey = '';
+    setStoredKey('');
+    doClear();
+    fState.innerHTML = '<option value="">-- All States --</option>';
+    $('btnLogout').style.display = 'none';
+    $('loginKey').value = '';
+    $('loginMsg').textContent = msg || '';
+    $('loginOverlay').classList.add('show');
+    setTimeout(() => $('loginKey').focus(), 50);
+  }
+
+  // ============ INIT ============
+  window.addEventListener('DOMContentLoaded', () => {
+    attachEvents();
+    if (API_URL.indexOf('PASTE_') === 0) {
+      $('loginMsg').textContent = 'API_URL is not configured in index.html.';
+      $('btnLogin').disabled = true;
+      return;
+    }
+    const saved = getStoredKey();
+    if (saved) { $('loginKey').value = saved; tryUnlock(saved); }
+    else $('loginKey').focus();
+  });
+
+  function attachEvents() {
+    btnSearch.addEventListener('click', doSearch);
+    btnClear.addEventListener('click', doClear);
+    btnExport.addEventListener('click', doExport);
+    fState.addEventListener('change', onStateChange);
+    fDistrict.addEventListener('change', onDistrictChange);
+    [fName, fMobile].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') doSearch(); }));
+
+    $('btnLogin').addEventListener('click', () => { const k = $('loginKey').value.trim(); if (k) tryUnlock(k); });
+    $('loginKey').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnLogin').click(); });
+    $('btnLogout').addEventListener('click', () => lock());
+
+    $('modalCloseBtn').addEventListener('click', closeModal);
+    $('modalCancelBtn').addEventListener('click', closeModal);
+    $('modalSaveBtn').addEventListener('click', saveUpdate);
+    $('modalOverlay').addEventListener('click', e => { if (e.target.id === 'modalOverlay') closeModal(); });
+  }
+
+  // ============ DROPDOWNS ============
+  function fillSelect(sel, placeholder, items) {
+    sel.innerHTML = '<option value="">' + placeholder + '</option>';
+    items.forEach(v => { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); });
+  }
+
+  async function loadStates() {
+    statusText.textContent = 'Loading states...';
+    try {
+      const res = await apiGet('states');
+      if (!res.success) return showAlert(res.error, 'error');
+      fillSelect(fState, '-- All States --', res.states);
+    } catch (err) { handleApiError(err, 'Failed to load states'); }
+    finally { statusText.textContent = ''; }
+  }
+
+  async function onStateChange() {
+    const state = fState.value;
+    fillSelect(fDistrict, '-- All Districts --', []);
+    fillSelect(fStation, '-- All Stations --', []);
+    fDistrict.disabled = true; fStation.disabled = true;
+    if (!state) return;
+    statusText.textContent = 'Loading districts...';
+    try {
+      const res = await apiGet('districts', { state });
+      if (fState.value !== state) return; // user changed selection meanwhile
+      if (!res.success) return showAlert(res.error, 'error');
+      fillSelect(fDistrict, '-- All Districts --', res.districts);
+      fDistrict.disabled = false;
+    } catch (err) { handleApiError(err, 'Failed to load districts'); }
+    finally { statusText.textContent = ''; }
+  }
+
+  async function onDistrictChange() {
+    const state = fState.value, district = fDistrict.value;
+    fillSelect(fStation, '-- All Stations --', []);
+    fStation.disabled = true;
+    if (!state || !district) return;
+    statusText.textContent = 'Loading stations...';
+    try {
+      const res = await apiGet('stations', { state, district });
+      if (fDistrict.value !== district) return;
+      if (!res.success) return showAlert(res.error, 'error');
+      fillSelect(fStation, '-- All Stations --', res.stations);
+      fStation.disabled = false;
+    } catch (err) { handleApiError(err, 'Failed to load stations'); }
+    finally { statusText.textContent = ''; }
+  }
+
+  // ============ SEARCH ============
+  async function doSearch() {
+    hideAlert();
+    incompleteNotice.classList.remove('show');
+
+    const filters = {
+      state: fState.value.trim(), district: fDistrict.value.trim(), station: fStation.value.trim(),
+      name: fName.value.trim(), mobile: fMobile.value.trim()
+    };
+    if (!filters.state && !filters.district && !filters.station && !filters.name && !filters.mobile) {
+      showAlert('Please enter at least one search criterion.', 'warning');
+      return;
+    }
+
+    currentSearchTerms = {
+      name: filters.name.toLowerCase(), mobile: filters.mobile.replace(/\D/g, ''),
+      state: filters.state.toLowerCase(), district: filters.district.toLowerCase(), station: filters.station.toLowerCase()
+    };
+
+    loader.classList.add('active');
+    resultsArea.innerHTML = '';
+    resultsHeader.style.display = 'none';
+    pagination.style.display = 'none';
+    btnSearch.disabled = true;
+    btnExport.disabled = true;
+
+    try {
+      const res = await apiGet('search', filters);
+      if (!res.success) {
+        showAlert(res.error || 'Search failed.', 'error');
+        showEmpty('No results', 'Try adjusting your filters.');
+        return;
+      }
+      currentResults = res.results || [];
+      currentPage = 1;
+      if (res.incomplete && res.incomplete.length > 0) showIncompleteNotice(res.incomplete);
+      if (currentResults.length === 0) {
+        showEmpty('No matches found', 'Try changing or broadening your filters.');
+      } else {
+        renderResults();
+        btnExport.disabled = false;
+      }
+    } catch (err) {
+      showEmpty('Search failed', 'Please try again.');
+      handleApiError(err, 'Search failed');
+    } finally {
+      loader.classList.remove('active');
+      btnSearch.disabled = false;
+    }
+  }
+
+  // ============ RENDER ============
+  function renderResults() {
+    const total = currentResults.length;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (currentPage > pages) currentPage = pages;
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const end = Math.min(start + PAGE_SIZE, total);
+    const pageRows = currentResults.slice(start, end);
+
+    resultsHeader.style.display = 'flex';
+    resultsCount.innerHTML = `Showing <b>${start + 1}-${end}</b> of <b>${total}</b> matching record${total === 1 ? '' : 's'}`;
+
+    let html = '<div class="table-scroll"><table><thead><tr>';
+    html += '<th>S.NO</th><th>Name</th><th>Email</th><th>Mobile</th>';
+    html += '<th>User Type</th><th>State</th><th>District</th><th>Station</th><th>Action</th>';
+    html += '</tr></thead><tbody>';
+
+    pageRows.forEach((r, i) => {
+      const missing = getMissingFields(r);
+      const actionCell = missing.length > 0
+        ? `<button class="fix-btn" data-row="${r.rowIndex}">✎ Complete</button>`
+        : '<span style="color:#28a745;">✓</span>';
+      html += `<tr class="${missing.length > 0 ? 'row-incomplete' : ''}">`;
+      html += `<td>${start + i + 1}</td>`;
+      html += `<td>${highlight(r.name, 'name')}</td>`;
+      html += `<td>${escapeHtml(r.email)}</td>`;
+      html += `<td>${highlight(r.mobile, 'mobile')}</td>`;
+      html += `<td>${escapeHtml(r.userType)}</td>`;
+      html += `<td>${highlight(r.state, 'state')}</td>`;
+      html += `<td>${highlight(r.district, 'district')}</td>`;
+      html += `<td>${highlight(r.station, 'station')}</td>`;
+      html += `<td>${actionCell}</td></tr>`;
+    });
+    html += '</tbody></table></div>';
+    resultsArea.innerHTML = html;
+
+    resultsArea.querySelectorAll('.fix-btn').forEach(btn => {
+      btn.addEventListener('click', () => openEditModal(parseInt(btn.dataset.row, 10)));
+    });
+    renderPagination(pages);
+  }
+
+  function renderPagination(pages) {
+    pagination.innerHTML = '';
+    if (pages <= 1) { pagination.style.display = 'none'; return; }
+    pagination.style.display = 'flex';
+
+    const addBtn = (label, page, opts = {}) => {
+      const b = document.createElement('button');
+      b.className = 'page-btn' + (opts.active ? ' active' : '');
+      b.textContent = label;
+      b.disabled = !!opts.disabled;
+      if (!opts.disabled && !opts.active) {
+        b.addEventListener('click', () => { currentPage = page; renderResults(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+      }
+      pagination.appendChild(b);
+    };
+
+    addBtn('« First', 1, { disabled: currentPage === 1 });
+    addBtn('‹ Prev', currentPage - 1, { disabled: currentPage === 1 });
+    let startP = Math.max(1, currentPage - 3);
+    let endP = Math.min(pages, startP + 6);
+    startP = Math.max(1, endP - 6);
+    for (let p = startP; p <= endP; p++) addBtn(String(p), p, { active: p === currentPage });
+    addBtn('Next ›', currentPage + 1, { disabled: currentPage === pages });
+    addBtn('Last »', pages, { disabled: currentPage === pages });
+
+    const info = document.createElement('span');
+    info.className = 'page-info';
+    info.textContent = `Page ${currentPage} / ${pages}`;
+    pagination.appendChild(info);
+  }
+
+  // ============ HIGHLIGHTING (works on raw text, escapes per character) ============
+  function wrapRange(text, s, e) {
+    return escapeHtml(text.substring(0, s)) + '<span class="highlight">' +
+      escapeHtml(text.substring(s, e)) + '</span>' + escapeHtml(text.substring(e));
+  }
+
+  function highlight(raw, field) {
+    const text = String(raw == null ? '' : raw);
+    const term = currentSearchTerms[field];
+    if (!term) return escapeHtml(text);
+
+    if (field === 'mobile') {
+      const digits = text.replace(/\D/g, '');
+      const idx = digits.indexOf(term);
+      if (idx === -1) return escapeHtml(text);
+      let count = 0, s = -1, e = -1;
+      for (let i = 0; i < text.length; i++) {
+        if (/\d/.test(text[i])) {
+          if (count === idx) s = i;
+          if (count === idx + term.length - 1) { e = i; break; }
+          count++;
+        }
+      }
+      return (s === -1 || e === -1) ? escapeHtml(text) : wrapRange(text, s, e + 1);
+    }
+
+    const idx = text.toLowerCase().indexOf(term);
+    if (idx !== -1) return wrapRange(text, idx, idx + term.length);
+
+    if (field === 'name' && term.length >= 4) {
+      const positions = new Set();
+      term.replace(/[^a-z]/g, '').split('').forEach(ch => {
+        for (let i = 0; i < text.length; i++) {
+          if (!positions.has(i) && text[i].toLowerCase() === ch) { positions.add(i); break; }
+        }
+      });
+      let out = '';
+      for (let i = 0; i < text.length; i++) {
+        const c = escapeHtml(text[i]);
+        out += positions.has(i) ? '<span class="highlight">' + c + '</span>' : c;
+      }
+      return out;
+    }
+    return escapeHtml(text);
+  }
+
+  // ============ INCOMPLETE RECORDS ============
+  function getMissingFields(r) {
+    const m = [];
+    if (!String(r.name || '').trim()) m.push('Name');
+    if (!String(r.email || '').trim()) m.push('Email');
+    if (!String(r.mobile || '').trim()) m.push('Mobile');
+    if (!String(r.userType || '').trim()) m.push('User Type');
+    if (!String(r.state || '').trim()) m.push('State');
+    if (!String(r.district || '').trim()) m.push('District');
+    if (!String(r.station || '').trim()) m.push('Station');
+    return m;
+  }
+
+  function showIncompleteNotice(list) {
+    let html = '<strong>⚠️ ' + list.length + ' record(s) have missing required fields:</strong><ul>';
+    list.slice(0, 10).forEach(item => {
+      html += '<li>Row ' + item.rowIndex + ' — ' + escapeHtml(item.name) +
+        ' <em>(missing: ' + item.missing.join(', ') + ')</em></li>';
+    });
+    if (list.length > 10) html += '<li>... and ' + (list.length - 10) + ' more.</li>';
+    html += '</ul><small>Click the <b>Complete</b> button on any highlighted row to update.</small>';
+    incompleteNotice.innerHTML = html;
+    incompleteNotice.classList.add('show');
+  }
+
+  // ============ UPDATE MODAL ============
+  function openEditModal(rowIndex) {
+    const record = currentResults.find(r => r.rowIndex === rowIndex);
+    if (!record) return;
+    editingRow = rowIndex;
+    const fields = [
+      { key: 'name', label: 'Name', val: record.name },
+      { key: 'email', label: 'Email', val: record.email },
+      { key: 'mobile', label: 'Mobile', val: record.mobile },
+      { key: 'userType', label: 'User Type', val: record.userType },
+      { key: 'state', label: 'State', val: record.state },
+      { key: 'district', label: 'District', val: record.district },
+      { key: 'station', label: 'Station', val: record.station }
+    ];
+    let html = '<p style="font-size:12px;color:#6c757d;margin-bottom:10px;">Row <b>' + rowIndex + '</b> — fill in all required fields.</p>';
+    fields.forEach(f => {
+      const isMissing = !String(f.val || '').trim();
+      html += '<div class="field"><label>' + f.label + (isMissing ? ' <span style="color:#dc3545;">*</span>' : '') + '</label>';
+      html += '<input type="text" id="edit_' + f.key + '" value="' + escapeHtml(f.val) + '"' + (isMissing ? ' class="missing"' : '') + '></div>';
+    });
+    html += '<div class="login-msg" id="modalMsg"></div>';
+    $('modalBody').innerHTML = html;
+    $('modalOverlay').classList.add('show');
+  }
+
+  function closeModal() {
+    $('modalOverlay').classList.remove('show');
+    editingRow = null;
+  }
+
+  async function saveUpdate() {
+    if (!editingRow) return;
+    const rowIndex = editingRow;
+    const payload = {
+      rowIndex: rowIndex,
+      name: $('edit_name').value.trim(), email: $('edit_email').value.trim(),
+      mobile: $('edit_mobile').value.trim(), userType: $('edit_userType').value.trim(),
+      state: $('edit_state').value.trim(), district: $('edit_district').value.trim(),
+      station: $('edit_station').value.trim()
+    };
+    const saveBtn = $('modalSaveBtn');
+    saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+    try {
+      const res = await apiPost('update', { payload });
+      if (!res.success) { $('modalMsg').textContent = 'Update failed: ' + res.error; return; }
+      const rec = currentResults.find(r => r.rowIndex === rowIndex);
+      if (rec) Object.assign(rec, payload);
+      closeModal();
+      renderResults();
+      showAlert('Record updated successfully.', 'info');
+    } catch (err) {
+      if (err instanceof AuthError) { closeModal(); handleApiError(err); }
+      else $('modalMsg').textContent = 'Update failed: ' + err.message;
+    } finally {
+      saveBtn.disabled = false; saveBtn.textContent = '💾 Save';
+    }
+  }
+
+  // ============ CLEAR ============
+  function doClear() {
+    fState.value = '';
+    fillSelect(fDistrict, '-- All Districts --', []);
+    fillSelect(fStation, '-- All Stations --', []);
+    fDistrict.disabled = true; fStation.disabled = true;
+    fName.value = ''; fMobile.value = '';
+    currentResults = []; currentSearchTerms = {}; currentPage = 1;
+    hideAlert();
+    incompleteNotice.classList.remove('show');
+    showEmpty('No search performed yet', 'Use the filters above and click Search to find records.');
+    btnExport.disabled = true;
+  }
+
+  // ============ EXPORT (CSV, opens in Excel) ============
+  function doExport() {
+    if (currentResults.length === 0) { showAlert('Nothing to export. Run a search first.', 'warning'); return; }
+    const rows = [['S.NO', 'Name', 'Email', 'Mobile', 'User Type', 'State', 'District', 'Station']];
+    currentResults.forEach((r, i) => rows.push([i + 1, r.name, r.email, r.mobile, r.userType, r.state, r.district, r.station]));
+    const csv = rows.map(row => row.map(cell => {
+      let s = String(cell == null ? '' : cell);
+      if (/^[=+\-@]/.test(s)) s = "'" + s;               // block formula injection
+      if (/^\d{10,}$/.test(s)) s = '="' + s + '"';         // keep long numbers (mobiles) as text
+      if (/[",\n\r]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    }).join(',')).join('\r\n');
+
+    const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'AIPD_Search_' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    showAlert('Exported ' + currentResults.length + ' record(s) to CSV.', 'info');
+  }
+
+  // ============ HELPERS ============
+  function escapeHtml(str) {
+    return String(str == null ? '' : str)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  let alertTimer = null;
+  function showAlert(msg, type) {
+    clearTimeout(alertTimer);
+    alertBox.className = 'alert show alert-' + (type || 'info');
+    alertBox.textContent = msg;
+    if (type !== 'error') alertTimer = setTimeout(hideAlert, 5000);
+  }
+  function hideAlert() { alertBox.className = 'alert'; alertBox.textContent = ''; }
+  function showEmpty(title, desc) {
+    resultsArea.innerHTML = '<div class="empty-state"><div class="icon">🔎</div><h3>' +
+      escapeHtml(title) + '</h3><p>' + escapeHtml(desc) + '</p></div>';
+    resultsHeader.style.display = 'none';
+    pagination.style.display = 'none';
+  }
+</script>
+</body>
+</html>
